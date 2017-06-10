@@ -186,4 +186,6 @@ FLAG: CREATE TABLE secret_flag (flag text)
                                           flag{7307e3ee8da198ca4a7f9b1f8b018d8e}
 ```
 
+Note: I am not proud of the code I have written but I did solve it pretty quickly (first blood even) so there's that. :)
+
 Flag: flag{7307e3ee8da198ca4a7f9b1f8b018d8e}
