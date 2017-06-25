@@ -4,7 +4,7 @@ Opening the PCAP file in Wireshark, we are presented with hundreds of DNS querie
 
 ![Wireshark view](wireshark.png)
 
-After looking inside the DNS queries, I did not notice any weird values except for the query. So let's extract all queries and responses with Scapy.
+After looking inside the DNS queries, I did not notice any weird values except for the query. So I extracted all queries and responses with Scapy.
 
 ```python
 from scapy.all import *
@@ -37,7 +37,7 @@ Answer: 180.46.203.226
 ...
 ```
 
-I noticed that the IP addresses are probably bogus or auto-generated because it contains invalid IP addresses. After try-and-error, I concatenated all the queries together, since all queries are the same length except the last one which indicates that it might be the remainder of some file or text.
+I noticed that the IP addresses were probably bogus or auto-generated because the output contains invalid IP addresses. After try-and-error, I concatenated all the queries together, since all queries are the same length except for the last one which indicated that it might be the remainder of some file or text.
 
 ```
 koffiedrinker$ perl -ne 'chomp;s/^Query: (.+)$/$1/;print if ! /Answer: /} END {print "\n"' for100/parsed_output.txt 
