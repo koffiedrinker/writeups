@@ -47,6 +47,7 @@ ASfsbGivEQsT2aQPHzaB5GBJZEAWX7WJASGCg5Br9TvJjPCj9kRW9fk5XU2brvAptS4tZnjLwCNsXn5N
 Since base64 decoding failed, I checked if the output did not contain any of the following characters which would indicate base58:
 
 > Compared to Base64, the following similar-looking letters are omitted: 0 (zero), O (capital o), I (capital i) and l (lower case L) as well as the non-alphanumeric characters + (plus) and / (slash).
+Source: [Wikipedia](https://en.wikipedia.org/wiki/Base58)
 
 And what do you know, it doesn't. A quick google leads us to an [online base58 decoder](https://www.browserling.com/tools/base58-decode) and the text decodes as the hacker manifesto with the flag:
 ```
