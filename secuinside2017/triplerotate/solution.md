@@ -65,11 +65,11 @@ vaddr=0x00400cfb paddr=0x00000cfb ordinal=004 sz=8 len=7 section=.rodata type=as
 
 It turns out that writing a write-up for a Reverse Engineering challenge is really boring. So I will just explain how the program worked and show my solution script. The decompiled code can be found at the end of this write-up if you're interested in that.
 
-The main function takes a input string of length 9 and then asks for a length. The length is used as the output length of the `encrypt` file. Our received `encrypt` file has 201 non-whitespace chars. `malloc_876` creates three buffers of this length which will be used to for manipulations and later on they are merged in the final encrypted bufferthat is written to `encrypt`. `fcn.00400998` takes our input string of 9 characters and creates a bit string from it with each bit as a 8-bit number. So for example the letter "a" would become `00 01 01 00 00 00 00 01`. This leads to a buffer of size 0x48 (9 times 8) since we have an input string of size 9. This string is then chopped up in three pieces: the first 0x17 bytes go to array 1, the next 0x18 go to array 2 and the last 0x19 go to array 3.
+The main function takes a input string of length 9 and then asks for a length. The length is used as the output length of the `encrypt` file. Our received `encrypt` file has 201 non-whitespace chars. `malloc_876` creates three buffers of this length which will be used to for manipulations and later on they are merged in the final encrypted buffer that is written to `encrypt`. `fcn.00400998` takes our input string of 9 characters and creates a bit string from it with each bit as a 8-bit number. So for example the letter "a" would become `00 01 01 00 00 00 00 01`. This leads to a buffer of size 0x48 (9 times 8) since we have an input string of size 9. This string is then chopped up in three pieces: the first 0x17 bytes go to array 1, the next 0x18 go to array 2 and the last 0x19 go to array 3 but all in reverse.
 
-Each of these arrays are then passed to a function where the original content (0x17 bytes for array 1 for example) are extended to the full length of the buffer (your input length). After extending the arrays, they are merged in one final buffer that is written to the `encrypt` file.
+Each of these arrays is then passed to a function where the original content (0x17 bytes for array 1 for example) is extended to the full length of the buffer (your input length). For example, array 2 is passed to `fcn.00400b22`. After extending the arrays, they are merged in one final buffer that is written to the `encrypt` file.
 
-Since all operations are reversible (it's all XOR's), we can use a SAT solver to find us an input that matches the `encrypt` file. The code below does just that and prints out a bit string which I then quickly manipulated with Perl to give the final flag.
+Since all operations on the input are reversible, we can use a SAT solver to find us an input that matches the `encrypt` file. The code below does just that and prints out a bit string which I then quickly manipulated with Perl to give the final flag.
 
 ```python
 from z3 import *
@@ -78,8 +78,8 @@ length = 201
 s = Solver()
 
 arr_encrypted = "0 0 1 0 0 0 1 0 1 1 0 1 0 1 1 0 1 1 1 0 0 0 1 0 1 0 1 1 1 0 1 0 0 0 0 1 0 0 0 1 1 0 1 1 0 1 1 0 0 0 0 0 1 1 0 1 1 1 0 0 1 0 1 0 1 0 1 1 0 0 1 0 1 0 1 0 1 0 0 0 0 1 1 1 0 1 0 0 1 1 0 0 0 0 0 1 1 1 0 1 1 0 0 0 1 1 1 1 1 1 1 1 0 1 1 1 0 1 0 1 1 0 1 0 1 0 0 1 0 0 0 1 0 0 0 1 1 0 0 1 0 1 0 0 1 0 0 1 1 0 0 0 1 1 0 1 1 1 0 0 1 0 0 1 0 1 1 0 0 1 1 0 1 1 1 1 0 1 1 1 0 1 0 1 1 0 0 1 0 0 1 0 0 0 1 0 1 0 0 0 1".split(" ")
-arr0 = []
-arr1 = []
+arr0 = [] # Output array
+arr1 = [] # The three arrays used in the program...
 arr2 = []
 arr3 = []
 for i in range(202):
@@ -89,29 +89,35 @@ for i in range(202):
 	arr2.append(BitVec("arr2_%i" % i, 8))
 	arr3.append(BitVec("arr3_%i" % i, 8))
 
-print("Adding conditions...")
 i = 0
 for str_bit in arr_encrypted:
 	arr0[i] = ord(str_bit) - 0x30 # Make it either 0x00 or 0x01...
 	i += 1
 
+print("Adding conditions...")
+
+# Conditions from fcn.00400acf
 i = 0
 while(length - 0x17 > i):
 	s.add(arr1[i + 0x17] == arr1[i] ^ arr1[i + 5])
 	i += 1
 
+# Conditions from fcn.00400b22
 i = 0
 while(length - 0x18 > i):
 	s.add(arr2[i + 0x18] == arr2[i] ^ (arr2[i + 1] ^ (arr2[i + 3] ^ arr2[i + 4])))
 	i += 1
 
+# Conditions from fcn.00400b9b
 i = 0
 while(length - 0x19 > i):
 	s.add(arr3[i + 0x19] == arr3[i] ^ arr3[i + 3])
 	i += 1
 
 for i in range(202):
+	# The merge that happens in malloc_876, maps the 3 arrays to the output (encrypt file)
 	s.add(arr0[i] == ((arr1[i] & arr2[i]) ^ (arr2[i] & arr3[i])) ^ arr3[i])
+	# Each number is either 0 or 1
 	s.add(arr0[i] < 2)
 	s.add(arr0[i] >= 0)
 	s.add(arr1[i] < 2)
@@ -125,16 +131,23 @@ print("Checking if solvable...")
 print(s.check())
 print("Printing model...")
 print(s.model())
+
 m = s.model()
 print("Bitstring...")
+# Print first 0x17 bits of input string
 for i in range(0x17):
 	print(m[arr1[0x16 - i]])
+
+# Print second 0x18 bits of input string
 for i in range(0x18):
 	print(m[arr2[0x17 - i]])
+
+# Print final 0x19 bits of input string
 for i in range(0x19):
 	print(m[arr3[0x18 - i]])
 ```
 
+Since I'm most comt comfortable with Perl, I quickly switch to it to do the final conversion to a string:
 ```perl
 print 'SECU[';
 print pack("B*", <DATA>);
